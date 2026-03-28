@@ -1,0 +1,37 @@
+name: Token Keeper
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-token-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: pip install requests
+
+      - name: Renovar token
+        env:
+          GITHUB_PAT:       ${{ secrets.KEEPER_GITHUB_PAT }}
+          GIST_ID:          ${{ secrets.KEEPER_GIST_ID }}
+          GIST_FILENAME:    ${{ secrets.KEEPER_GIST_FILENAME }}
+          SOLAR_API_BASE:   ${{ secrets.KEEPER_API_BASE }}
+          SOLAR_ORIGIN:     ${{ secrets.KEEPER_API_ORIGIN }}
+          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/solar_token_keeper.py
+
+      - name: Alerta de falha
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="[URGENTE] HUB Solar%0A%0AToken Keeper falhou. Envie o token via Telegram."
